@@ -1,5 +1,7 @@
 # system-design-distributed-id-generator
 
+[![CI](https://github.com/HamidKhan1001/system-design-distributed-id-generator/actions/workflows/ci.yml/badge.svg)](https://github.com/HamidKhan1001/system-design-distributed-id-generator/actions/workflows/ci.yml)
+
 Snowflake-style globally unique 64-bit ID generator — ordered, collision-free across multiple data centers without a centralized database.
 
 ## Bit layout (63 usable bits)
@@ -18,7 +20,7 @@ Snowflake-style globally unique 64-bit ID generator — ordered, collision-free 
 | Worker      | 5    | 31        | up to 32 workers per datacenter   |
 | Sequence    | 12   | 4095      | IDs within the same millisecond   |
 
-## Throughput math
+## Capacity math (theoretical maximum, not measured)
 
 - **4,096 IDs/ms** per worker (sequence rolls over every ms)
 - **1,024 workers** max (32 DCs × 32 workers each)
@@ -45,3 +47,10 @@ SnowflakeGenerator.max_ids_per_ms(1024)  # → 4_194_304
 pip install -r requirements.txt
 python3 -m pytest tests/ -v   # 20 tests
 ```
+
+## Tradeoffs and limitations
+
+- **Single process.** Uniqueness across processes depends on each one being configured with a distinct datacenter and worker ID. Nothing here assigns or checks those IDs, which in practice needs a coordination service or deployment config.
+- **Clock regression raises.** If the system clock moves backwards, `next_id` raises `ClockBackwardError` instead of risking a duplicate. A production service would typically wait out small regressions.
+- **The throughput figures above are arithmetic from the bit layout**, not a benchmark. Python and the lock cap real per-process throughput far below 4,096 IDs per millisecond.
+- **Wall-clock timestamps.** IDs are time-ordered only to millisecond precision and only as far as the clock is accurate.
